@@ -19,6 +19,7 @@
       <button id="uploadBtn">Upload Fees CSV</button>
       <input type="file" id="fileInput" accept=".csv" hidden />
       <button id="downloadBtn">Download Filtered CSV</button>
+      <button id="wipeBtn" class="danger-btn">Clear All Data</button>
     </div>
     <p class="hint">
       CSV columns: <code>roll_number, name, batch_name, semester, month, year, amount_paid, payment_date (YYYY-MM-DD)</code>. New students are auto-added; existing ones keep their details.
@@ -51,6 +52,7 @@
         <th>Fee Status</th>
         <th>Amount Paid</th>
         <th>Payment Date</th>
+        <th>Actions</th>
       </tr>
     </thead>
     <tbody></tbody>

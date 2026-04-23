@@ -4,6 +4,7 @@ from datetime import datetime
 
 from flask import Flask, jsonify, render_template, request
 
+import seed
 from db import get_conn
 
 app = Flask(__name__)
@@ -172,6 +173,33 @@ def api_upload_fees():
         "updated": updated,
         "new_students_created": new_students_created,
         "parse_errors": errors,
+    })
+
+
+@app.route("/api/students/<int:student_id>", methods=["DELETE"])
+def api_delete_student(student_id):
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("DELETE FROM students WHERE student_id = %s RETURNING student_id;", (student_id,))
+        row = cur.fetchone()
+    if not row:
+        return jsonify({"error": "student not found", "student_id": student_id}), 404
+    return jsonify({"deleted": True, "student_id": student_id})
+
+
+@app.route("/api/wipe-all", methods=["POST"])
+def api_wipe_all():
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("TRUNCATE fees, students RESTART IDENTITY CASCADE;")
+    seed.main()
+    with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS c FROM students;")
+        students_count = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM fees;")
+        fees_count = cur.fetchone()["c"]
+    return jsonify({
+        "wiped": True,
+        "reseeded_students": students_count,
+        "reseeded_fees": fees_count,
     })
 
 

@@ -9,6 +9,7 @@ const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("fileInput");
 const downloadBtn = document.getElementById("downloadBtn");
 const sampleBtn = document.getElementById("sampleBtn");
+const wipeBtn = document.getElementById("wipeBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 const rowCount = document.getElementById("rowCount");
 const tbody = document.querySelector("#studentsTable tbody");
@@ -44,6 +45,9 @@ function initDateSelects() {
 async function loadBatches() {
   const res = await fetch("/api/batches");
   const { batches, semesters } = await res.json();
+  // Reset to just the "All" option so repeated calls don't duplicate entries
+  filterBatch.innerHTML = '<option value="">All Batches</option>';
+  filterSemester.innerHTML = '<option value="">All Semesters</option>';
   batches.forEach(b => {
     const o = document.createElement("option");
     o.value = b; o.textContent = b;
@@ -99,6 +103,7 @@ function render() {
       <td><span class="status-badge ${r.status === "Paid" ? "paid" : "unpaid"}">${r.status}</span></td>
       <td>${r.amount_paid != null ? r.amount_paid.toFixed(2) : "—"}</td>
       <td>${r.payment_date || "—"}</td>
+      <td><button class="row-delete" data-id="${r.student_id}" title="Delete student">🗑</button></td>
     `;
     tbody.appendChild(tr);
   }
@@ -211,6 +216,41 @@ fileInput.addEventListener("change", e => {
 });
 downloadBtn.addEventListener("click", downloadCsv);
 sampleBtn.addEventListener("click", downloadSampleCsv);
+wipeBtn.addEventListener("click", wipeAll);
+
+tbody.addEventListener("click", async (e) => {
+  const btn = e.target.closest(".row-delete");
+  if (!btn) return;
+  const id = btn.dataset.id;
+  const row = btn.closest("tr");
+  const name = row?.cells[0]?.innerText || `student ${id}`;
+  if (!confirm(`Delete ${name}? This also removes all their fee records.`)) return;
+  const res = await fetch(`/api/students/${id}`, { method: "DELETE" });
+  if (!res.ok) {
+    alert(`Delete failed (HTTP ${res.status})`);
+    return;
+  }
+  await loadStudents();
+});
+
+async function wipeAll() {
+  if (!confirm("This will PERMANENTLY delete ALL students and fees, then reseed the original 15 sample students. Continue?")) return;
+  const typed = prompt('Type DELETE (in capitals) to confirm:');
+  if (typed !== "DELETE") {
+    uploadStatus.textContent = "Wipe cancelled.";
+    return;
+  }
+  uploadStatus.textContent = "Wiping and reseeding…";
+  const res = await fetch("/api/wipe-all", { method: "POST" });
+  const data = await res.json();
+  if (!res.ok) {
+    uploadStatus.textContent = `Wipe failed: ${data.error || "unknown error"}`;
+    return;
+  }
+  uploadStatus.textContent = `Wiped. Reseeded ${data.reseeded_students} students and ${data.reseeded_fees} fee records.`;
+  await loadBatches();
+  await loadStudents();
+}
 
 function downloadSampleCsv() {
   const headers = ["roll_number", "name", "batch_name", "semester", "month", "year", "amount_paid", "payment_date"];

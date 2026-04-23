@@ -30,6 +30,25 @@ header { margin-bottom: 20px; }
   border-color: #1d4ed8;
 }
 .controls button:hover { background: #1d4ed8; }
+.controls button.danger-btn {
+  background: #dc2626;
+  border-color: #b91c1c;
+}
+.controls button.danger-btn:hover { background: #b91c1c; }
+
+.row-delete {
+  background: transparent;
+  border: 1px solid transparent;
+  color: #b91c1c;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+.row-delete:hover {
+  background: #fee2e2;
+  border-color: #fecaca;
+}
 .hint { font-size: 12px; color: #666; margin: 4px 0; }
 .status { font-size: 13px; color: #555; margin: 6px 0; }
 
