@@ -52,7 +52,7 @@ with OUTPUT.open("w", newline="") as f:
         last_day = monthrange(year, month)[1]
         day = random.randint(1, last_day)
         amount = random.choice([13000, 13500, 14000, 14500, 15000, 15500, 16000])
-        payment_date = date(year, month, day).isoformat()
+        payment_date = date(year, month, day).strftime("%d/%m/%Y")
         w.writerow([roll, name, batch, semester, month, year, amount, payment_date])
 
 print(f"Wrote {N_STUDENTS} rows to {OUTPUT} ({OUTPUT.stat().st_size/1024:.1f} KB)")

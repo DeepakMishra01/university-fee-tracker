@@ -102,7 +102,7 @@ function render() {
       <td>${escapeHtml(r.semester)}</td>
       <td><span class="status-badge ${r.status === "Paid" ? "paid" : "unpaid"}">${r.status}</span></td>
       <td>${r.amount_paid != null ? r.amount_paid.toFixed(2) : "—"}</td>
-      <td>${r.payment_date || "—"}</td>
+      <td>${formatDate(r.payment_date) || "—"}</td>
       <td><button class="row-delete" data-id="${r.student_id}" title="Delete student">🗑</button></td>
     `;
     tbody.appendChild(tr);
@@ -116,6 +116,12 @@ function escapeHtml(s) {
   }[c]));
 }
 
+function formatDate(iso) {
+  if (!iso) return "";
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso);
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : iso;
+}
+
 function downloadCsv() {
   const rows = getFiltered();
   const headers = ["Name", "Roll No", "Batch", "Semester", "Fee Status", "Amount Paid", "Payment Date"];
@@ -124,7 +130,7 @@ function downloadCsv() {
     const cells = [
       r.name, r.roll_number, r.batch_name, r.semester, r.status,
       r.amount_paid != null ? r.amount_paid.toFixed(2) : "",
-      r.payment_date || "",
+      formatDate(r.payment_date),
     ].map(csvEscape);
     lines.push(cells.join(","));
   }
@@ -255,8 +261,8 @@ async function wipeAll() {
 function downloadSampleCsv() {
   const headers = ["roll_number", "name", "batch_name", "semester", "month", "year", "amount_paid", "payment_date"];
   const examples = [
-    ["CSE24001", "Aarav Sharma", "2025 - Aug - B.Tech CSE", "B.Tech CSE - Sem 1", "5", "2026", "15000", "2026-05-01"],
-    ["NEW001",   "New Student",  "2025 - Aug - B.Tech ME",  "B.Tech ME - Sem 1",  "5", "2026", "14000", "2026-05-02"],
+    ["CSE24001", "Aarav Sharma", "2025 - Aug - B.Tech CSE", "B.Tech CSE - Sem 1", "5", "2026", "15000", "01/05/2026"],
+    ["NEW001",   "New Student",  "2025 - Aug - B.Tech ME",  "B.Tech ME - Sem 1",  "5", "2026", "14000", "02/05/2026"],
   ];
   const lines = [headers.join(","), ...examples.map(r => r.map(csvEscape).join(","))];
   const blob = new Blob([lines.join("\n")], { type: "text/csv" });

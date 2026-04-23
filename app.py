@@ -10,6 +10,15 @@ from db import get_conn
 app = Flask(__name__)
 
 
+def parse_payment_date(s: str):
+    for fmt in ("%d/%m/%Y", "%Y-%m-%d", "%d-%m-%Y"):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    raise ValueError(f"payment_date must be DD/MM/YYYY or YYYY-MM-DD (got {s!r})")
+
+
 @app.route("/")
 def index():
     return render_template("index.html")
@@ -90,7 +99,7 @@ def api_upload_fees():
             month = int(row["month"])
             year = int(row["year"])
             amount = float(row["amount_paid"])
-            payment_date = datetime.strptime(row["payment_date"].strip(), "%Y-%m-%d").date()
+            payment_date = parse_payment_date(row["payment_date"].strip())
             if not (1 <= month <= 12):
                 raise ValueError("month must be 1-12")
             if not roll or not name or not batch_name or not semester:
