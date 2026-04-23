@@ -92,6 +92,11 @@ function getFiltered() {
 function render() {
   const rows = getFiltered();
   tbody.innerHTML = "";
+  updateStats(rows);
+
+  const emptyState = document.getElementById("emptyState");
+  if (emptyState) emptyState.hidden = fullData.length > 0;
+
   for (const r of rows) {
     const tr = document.createElement("tr");
     if (r.status === "Unpaid") tr.classList.add("defaulter");
@@ -114,6 +119,24 @@ function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, c => ({
     "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
   }[c]));
+}
+
+function updateStats(visibleRows) {
+  const total = visibleRows.length;
+  const paid = visibleRows.filter(r => r.status === "Paid").length;
+  const unpaid = total - paid;
+  const collected = visibleRows.reduce((s, r) => s + (r.amount_paid || 0), 0);
+  const pct = n => (total ? Math.round((n / total) * 100) : 0);
+
+  document.getElementById("statTotal").textContent = total.toLocaleString();
+  document.getElementById("statPaid").textContent = paid.toLocaleString();
+  document.getElementById("statPaidPct").textContent = `${pct(paid)}% of filtered`;
+  document.getElementById("statUnpaid").textContent = unpaid.toLocaleString();
+  document.getElementById("statUnpaidPct").textContent = `${pct(unpaid)}% of filtered`;
+  document.getElementById("statCollected").textContent =
+    "₹" + collected.toLocaleString("en-IN", { maximumFractionDigits: 0 });
+  const m = MONTH_NAMES[+monthSelect.value - 1];
+  document.getElementById("statPeriod").textContent = `${m} ${yearSelect.value}`;
 }
 
 function formatDate(iso) {

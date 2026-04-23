@@ -2,62 +2,127 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>University Fee Tracker</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
 </head>
 <body>
-  <header>
-    <h1>University Fee Tracker</h1>
-    <div class="controls">
-      <label>Month:
-        <select id="monthSelect"></select>
-      </label>
-      <label>Year:
-        <select id="yearSelect"></select>
-      </label>
-      <button id="sampleBtn">Download Sample CSV</button>
-      <button id="uploadBtn">Upload Fees CSV</button>
-      <input type="file" id="fileInput" accept=".csv" hidden />
-      <button id="downloadBtn">Download Filtered CSV</button>
-      <button id="wipeBtn" class="danger-btn">Clear All Data</button>
-    </div>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">
+        <div class="logo">🎓</div>
+        <div>
+          <h1>University Fee Tracker</h1>
+          <p class="subtitle">Monthly fee collection dashboard</p>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <label class="field">
+          <span>Month</span>
+          <select id="monthSelect"></select>
+        </label>
+        <label class="field">
+          <span>Year</span>
+          <select id="yearSelect"></select>
+        </label>
+      </div>
+    </header>
+
+    <section class="stats">
+      <div class="stat-card stat-total">
+        <div class="stat-label">Total Students</div>
+        <div class="stat-value" id="statTotal">—</div>
+      </div>
+      <div class="stat-card stat-paid">
+        <div class="stat-label">Paid</div>
+        <div class="stat-value" id="statPaid">—</div>
+        <div class="stat-sub" id="statPaidPct">—</div>
+      </div>
+      <div class="stat-card stat-unpaid">
+        <div class="stat-label">Defaulters</div>
+        <div class="stat-value" id="statUnpaid">—</div>
+        <div class="stat-sub" id="statUnpaidPct">—</div>
+      </div>
+      <div class="stat-card stat-collected">
+        <div class="stat-label">Collected</div>
+        <div class="stat-value" id="statCollected">—</div>
+        <div class="stat-sub" id="statPeriod">—</div>
+      </div>
+    </section>
+
+    <section class="toolbar">
+      <div class="toolbar-group">
+        <button id="sampleBtn" class="btn btn-ghost">
+          <span class="ico">⇣</span> Sample CSV
+        </button>
+        <button id="uploadBtn" class="btn btn-primary">
+          <span class="ico">⬆</span> Upload Fees CSV
+        </button>
+        <input type="file" id="fileInput" accept=".csv" hidden />
+        <button id="downloadBtn" class="btn btn-ghost">
+          <span class="ico">⬇</span> Export Filtered
+        </button>
+      </div>
+      <div class="toolbar-group">
+        <button id="wipeBtn" class="btn btn-danger">
+          <span class="ico">🗑</span> Clear All Data
+        </button>
+      </div>
+    </section>
+
     <p class="hint">
-      CSV columns: <code>roll_number, name, batch_name, semester, month, year, amount_paid, payment_date (DD/MM/YYYY)</code>. New students are auto-added; existing ones keep their details.
+      CSV columns: <code>roll_number, name, batch_name, semester, month, year, amount_paid, payment_date&nbsp;(DD/MM/YYYY)</code>. New students are auto-added; existing ones keep their details.
     </p>
+
     <div id="progressBar" class="progress" hidden>
       <div id="progressFill" class="progress-fill">0%</div>
     </div>
     <p id="uploadStatus" class="status"></p>
-  </header>
 
-  <section class="filters">
-    <input type="text" id="filterName" placeholder="Filter Name…" />
-    <input type="text" id="filterRoll" placeholder="Filter Roll No…" />
-    <select id="filterBatch"><option value="">All Batches</option></select>
-    <select id="filterSemester"><option value="">All Semesters</option></select>
-    <select id="filterStatus">
-      <option value="">All Statuses</option>
-      <option value="Paid">Paid</option>
-      <option value="Unpaid">Unpaid</option>
-    </select>
-  </section>
+    <section class="filters">
+      <input type="text" id="filterName" placeholder="🔍 Search name…" />
+      <input type="text" id="filterRoll" placeholder="🎟 Roll no…" />
+      <select id="filterBatch"><option value="">All Batches</option></select>
+      <select id="filterSemester"><option value="">All Semesters</option></select>
+      <select id="filterStatus">
+        <option value="">All Statuses</option>
+        <option value="Paid">Paid</option>
+        <option value="Unpaid">Unpaid</option>
+      </select>
+    </section>
 
-  <table id="studentsTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Roll No</th>
-        <th>Batch</th>
-        <th>Semester</th>
-        <th>Fee Status</th>
-        <th>Amount Paid</th>
-        <th>Payment Date</th>
-        <th>Actions</th>
-      </tr>
-    </thead>
-    <tbody></tbody>
-  </table>
-  <p id="rowCount" class="status"></p>
+    <div class="table-wrap">
+      <table id="studentsTable">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Roll No</th>
+            <th>Batch</th>
+            <th>Semester</th>
+            <th>Fee Status</th>
+            <th>Amount Paid</th>
+            <th>Payment Date</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+      <div id="emptyState" class="empty-state" hidden>
+        <div class="empty-icon">📭</div>
+        <div class="empty-title">No students yet</div>
+        <div class="empty-sub">Upload a CSV to get started, or download the sample to see the expected format.</div>
+      </div>
+    </div>
+
+    <p id="rowCount" class="status status-muted"></p>
+
+    <footer class="footer">
+      Built for the University Fee Tracking assignment · Flask + PostgreSQL + Vanilla JS
+    </footer>
+  </div>
 
   <script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
