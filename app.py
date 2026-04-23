@@ -198,7 +198,21 @@ def api_delete_student(student_id):
 @app.route("/api/wipe-all", methods=["POST"])
 def api_wipe_all():
     with get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT COUNT(*) AS c FROM students;")
+        before_students = cur.fetchone()["c"]
+        cur.execute("SELECT COUNT(*) AS c FROM fees;")
+        before_fees = cur.fetchone()["c"]
         cur.execute("TRUNCATE fees, students RESTART IDENTITY CASCADE;")
+    return jsonify({
+        "wiped": True,
+        "deleted_students": before_students,
+        "deleted_fees": before_fees,
+    })
+
+
+@app.route("/api/reseed", methods=["POST"])
+def api_reseed():
+    """Reinsert the original 15 sample students + 13 sample fee rows."""
     seed.main()
     with get_conn() as conn, conn.cursor() as cur:
         cur.execute("SELECT COUNT(*) AS c FROM students;")
@@ -206,9 +220,9 @@ def api_wipe_all():
         cur.execute("SELECT COUNT(*) AS c FROM fees;")
         fees_count = cur.fetchone()["c"]
     return jsonify({
-        "wiped": True,
-        "reseeded_students": students_count,
-        "reseeded_fees": fees_count,
+        "reseeded": True,
+        "students": students_count,
+        "fees": fees_count,
     })
 
 

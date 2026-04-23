@@ -240,20 +240,20 @@ tbody.addEventListener("click", async (e) => {
 });
 
 async function wipeAll() {
-  if (!confirm("This will PERMANENTLY delete ALL students and fees, then reseed the original 15 sample students. Continue?")) return;
+  if (!confirm("This will PERMANENTLY delete ALL students and ALL fee records. The database will be left empty. Continue?")) return;
   const typed = prompt('Type DELETE (in capitals) to confirm:');
   if (typed !== "DELETE") {
     uploadStatus.textContent = "Wipe cancelled.";
     return;
   }
-  uploadStatus.textContent = "Wiping and reseeding…";
+  uploadStatus.textContent = "Wiping…";
   const res = await fetch("/api/wipe-all", { method: "POST" });
   const data = await res.json();
   if (!res.ok) {
     uploadStatus.textContent = `Wipe failed: ${data.error || "unknown error"}`;
     return;
   }
-  uploadStatus.textContent = `Wiped. Reseeded ${data.reseeded_students} students and ${data.reseeded_fees} fee records.`;
+  uploadStatus.textContent = `Wiped. Deleted ${data.deleted_students} students and ${data.deleted_fees} fee records. Upload a CSV to add data.`;
   await loadBatches();
   await loadStudents();
 }
