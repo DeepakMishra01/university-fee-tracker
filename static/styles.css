@@ -386,12 +386,44 @@ tr.defaulter:hover { background: #fef2f2; }
 .empty-title { font-size: 18px; font-weight: 600; color: var(--text); }
 .empty-sub { font-size: 13px; margin-top: 6px; }
 
-/* ---------- Footer ---------- */
-.footer {
-  margin-top: 32px;
-  text-align: center;
+/* ---------- Pagination ---------- */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 12px 2px 0;
+  flex-wrap: wrap;
+}
+.pagination-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.page-size {
   font-size: 12px;
   color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.page-size select {
+  padding: 5px 24px 5px 10px;
+  font-size: 12px;
+  width: auto;
+}
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.page-info {
+  font-size: 12px;
+  color: var(--text-muted);
+  padding: 0 6px;
+  min-width: 90px;
+  text-align: center;
 }
 
 /* ---------- Responsive ---------- */

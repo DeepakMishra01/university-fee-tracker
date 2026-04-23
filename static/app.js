@@ -21,6 +21,8 @@ const filterSemester = document.getElementById("filterSemester");
 const filterStatus = document.getElementById("filterStatus");
 
 let fullData = [];
+let currentPage = 1;
+let pageSize = 50;
 
 // Populate Month/Year dropdowns
 function initDateSelects() {
@@ -69,6 +71,7 @@ async function loadStudents() {
     return;
   }
   fullData = await res.json();
+  currentPage = 1;
   render();
 }
 
@@ -91,13 +94,20 @@ function getFiltered() {
 
 function render() {
   const rows = getFiltered();
-  tbody.innerHTML = "";
   updateStats(rows);
 
+  const totalPages = Math.max(1, Math.ceil(rows.length / pageSize));
+  if (currentPage > totalPages) currentPage = totalPages;
+  if (currentPage < 1) currentPage = 1;
+  const start = (currentPage - 1) * pageSize;
+  const end = start + pageSize;
+  const pageRows = rows.slice(start, end);
+
+  tbody.innerHTML = "";
   const emptyState = document.getElementById("emptyState");
   if (emptyState) emptyState.hidden = fullData.length > 0;
 
-  for (const r of rows) {
+  for (const r of pageRows) {
     const tr = document.createElement("tr");
     if (r.status === "Unpaid") tr.classList.add("defaulter");
     tr.innerHTML = `
@@ -112,7 +122,18 @@ function render() {
     `;
     tbody.appendChild(tr);
   }
-  rowCount.textContent = `Showing ${rows.length} of ${fullData.length} students.`;
+  const shownStart = rows.length ? start + 1 : 0;
+  const shownEnd = Math.min(end, rows.length);
+  rowCount.textContent = rows.length
+    ? `Showing ${shownStart}–${shownEnd} of ${rows.length.toLocaleString()} filtered (${fullData.length.toLocaleString()} total)`
+    : `0 of ${fullData.length.toLocaleString()} students match the current filters`;
+
+  const pageInfo = document.getElementById("pageInfo");
+  const prevBtn = document.getElementById("prevPage");
+  const nextBtn = document.getElementById("nextPage");
+  if (pageInfo) pageInfo.textContent = `Page ${currentPage} of ${totalPages}`;
+  if (prevBtn) prevBtn.disabled = currentPage <= 1;
+  if (nextBtn) nextBtn.disabled = currentPage >= totalPages;
 }
 
 function escapeHtml(s) {
@@ -236,8 +257,20 @@ function uploadFile(file) {
 // Wire events
 [monthSelect, yearSelect].forEach(el => el.addEventListener("change", loadStudents));
 [filterName, filterRoll, filterBatch, filterSemester, filterStatus].forEach(el =>
-  el.addEventListener("input", render)
+  el.addEventListener("input", () => { currentPage = 1; render(); })
 );
+
+document.getElementById("prevPage").addEventListener("click", () => {
+  if (currentPage > 1) { currentPage--; render(); }
+});
+document.getElementById("nextPage").addEventListener("click", () => {
+  currentPage++; render();
+});
+document.getElementById("pageSize").addEventListener("change", e => {
+  pageSize = parseInt(e.target.value, 10) || 50;
+  currentPage = 1;
+  render();
+});
 uploadBtn.addEventListener("click", () => fileInput.click());
 fileInput.addEventListener("change", e => {
   if (e.target.files[0]) uploadFile(e.target.files[0]);
