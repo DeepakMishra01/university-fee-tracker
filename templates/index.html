@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>University Fee Tracker</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}" />
+</head>
+<body>
+  <header>
+    <h1>University Fee Tracker</h1>
+    <div class="controls">
+      <label>Month:
+        <select id="monthSelect"></select>
+      </label>
+      <label>Year:
+        <select id="yearSelect"></select>
+      </label>
+      <button id="uploadBtn">Upload Fees CSV</button>
+      <input type="file" id="fileInput" accept=".csv" hidden />
+      <button id="downloadBtn">Download Filtered CSV</button>
+    </div>
+    <p class="hint">
+      CSV columns: <code>roll_number, month, year, amount_paid, payment_date (YYYY-MM-DD)</code>
+    </p>
+    <p id="uploadStatus" class="status"></p>
+  </header>
+
+  <section class="filters">
+    <input type="text" id="filterName" placeholder="Filter Name…" />
+    <input type="text" id="filterRoll" placeholder="Filter Roll No…" />
+    <select id="filterBatch"><option value="">All Batches</option></select>
+    <select id="filterSemester"><option value="">All Semesters</option></select>
+    <select id="filterStatus">
+      <option value="">All Statuses</option>
+      <option value="Paid">Paid</option>
+      <option value="Unpaid">Unpaid</option>
+    </select>
+  </section>
+
+  <table id="studentsTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Roll No</th>
+        <th>Batch</th>
+        <th>Semester</th>
+        <th>Fee Status</th>
+        <th>Amount Paid</th>
+        <th>Payment Date</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+  <p id="rowCount" class="status"></p>
+
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

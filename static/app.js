@@ -1,0 +1,170 @@
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+const monthSelect = document.getElementById("monthSelect");
+const yearSelect = document.getElementById("yearSelect");
+const uploadBtn = document.getElementById("uploadBtn");
+const fileInput = document.getElementById("fileInput");
+const downloadBtn = document.getElementById("downloadBtn");
+const uploadStatus = document.getElementById("uploadStatus");
+const rowCount = document.getElementById("rowCount");
+const tbody = document.querySelector("#studentsTable tbody");
+
+const filterName = document.getElementById("filterName");
+const filterRoll = document.getElementById("filterRoll");
+const filterBatch = document.getElementById("filterBatch");
+const filterSemester = document.getElementById("filterSemester");
+const filterStatus = document.getElementById("filterStatus");
+
+let fullData = [];
+
+// Populate Month/Year dropdowns
+function initDateSelects() {
+  MONTH_NAMES.forEach((name, i) => {
+    const opt = document.createElement("option");
+    opt.value = String(i + 1);
+    opt.textContent = name;
+    monthSelect.appendChild(opt);
+  });
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+    const opt = document.createElement("option");
+    opt.value = String(y);
+    opt.textContent = String(y);
+    yearSelect.appendChild(opt);
+  }
+  monthSelect.value = String(now.getMonth() + 1);
+  yearSelect.value = String(currentYear);
+}
+
+async function loadBatches() {
+  const res = await fetch("/api/batches");
+  const { batches, semesters } = await res.json();
+  batches.forEach(b => {
+    const o = document.createElement("option");
+    o.value = b; o.textContent = b;
+    filterBatch.appendChild(o);
+  });
+  semesters.forEach(s => {
+    const o = document.createElement("option");
+    o.value = s; o.textContent = s;
+    filterSemester.appendChild(o);
+  });
+}
+
+async function loadStudents() {
+  const m = monthSelect.value;
+  const y = yearSelect.value;
+  const res = await fetch(`/api/students?month=${m}&year=${y}`);
+  if (!res.ok) {
+    rowCount.textContent = "Error loading students.";
+    return;
+  }
+  fullData = await res.json();
+  render();
+}
+
+function getFiltered() {
+  const nameQ = filterName.value.trim().toLowerCase();
+  const rollQ = filterRoll.value.trim().toLowerCase();
+  const batchQ = filterBatch.value;
+  const semQ = filterSemester.value;
+  const statusQ = filterStatus.value;
+
+  return fullData.filter(r => {
+    if (nameQ && !r.name.toLowerCase().includes(nameQ)) return false;
+    if (rollQ && !r.roll_number.toLowerCase().includes(rollQ)) return false;
+    if (batchQ && r.batch_name !== batchQ) return false;
+    if (semQ && r.semester !== semQ) return false;
+    if (statusQ && r.status !== statusQ) return false;
+    return true;
+  });
+}
+
+function render() {
+  const rows = getFiltered();
+  tbody.innerHTML = "";
+  for (const r of rows) {
+    const tr = document.createElement("tr");
+    if (r.status === "Unpaid") tr.classList.add("defaulter");
+    tr.innerHTML = `
+      <td>${escapeHtml(r.name)}</td>
+      <td>${escapeHtml(r.roll_number)}</td>
+      <td>${escapeHtml(r.batch_name)}</td>
+      <td>${escapeHtml(r.semester)}</td>
+      <td><span class="status-badge ${r.status === "Paid" ? "paid" : "unpaid"}">${r.status}</span></td>
+      <td>${r.amount_paid != null ? r.amount_paid.toFixed(2) : "—"}</td>
+      <td>${r.payment_date || "—"}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+  rowCount.textContent = `Showing ${rows.length} of ${fullData.length} students.`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;",
+  }[c]));
+}
+
+function downloadCsv() {
+  const rows = getFiltered();
+  const headers = ["Name", "Roll No", "Batch", "Semester", "Fee Status", "Amount Paid", "Payment Date"];
+  const lines = [headers.join(",")];
+  for (const r of rows) {
+    const cells = [
+      r.name, r.roll_number, r.batch_name, r.semester, r.status,
+      r.amount_paid != null ? r.amount_paid.toFixed(2) : "",
+      r.payment_date || "",
+    ].map(csvEscape);
+    lines.push(cells.join(","));
+  }
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `fees_${MONTH_NAMES[+monthSelect.value - 1]}_${yearSelect.value}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function csvEscape(v) {
+  const s = String(v ?? "");
+  return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+}
+
+async function uploadFile(file) {
+  const fd = new FormData();
+  fd.append("file", file);
+  uploadStatus.textContent = "Uploading…";
+  const res = await fetch("/api/upload-fees", { method: "POST", body: fd });
+  const data = await res.json();
+  if (!res.ok) {
+    uploadStatus.textContent = `Upload failed: ${data.error || "unknown error"}`;
+    return;
+  }
+  uploadStatus.textContent =
+    `Upload done. Inserted: ${data.inserted}, Updated: ${data.updated}, Skipped: ${data.skipped}` +
+    (data.unknown_roll_numbers?.length ? ` (unknown rolls: ${data.unknown_roll_numbers.join(", ")})` : "") +
+    (data.parse_errors?.length ? ` — ${data.parse_errors.length} parse error(s)` : "");
+  await loadStudents();
+}
+
+// Wire events
+[monthSelect, yearSelect].forEach(el => el.addEventListener("change", loadStudents));
+[filterName, filterRoll, filterBatch, filterSemester, filterStatus].forEach(el =>
+  el.addEventListener("input", render)
+);
+uploadBtn.addEventListener("click", () => fileInput.click());
+fileInput.addEventListener("change", e => {
+  if (e.target.files[0]) uploadFile(e.target.files[0]);
+  e.target.value = "";
+});
+downloadBtn.addEventListener("click", downloadCsv);
+
+// Boot
+initDateSelects();
+loadBatches().then(loadStudents);
