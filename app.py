@@ -98,42 +98,74 @@ def api_upload_fees():
         except (ValueError, KeyError, AttributeError) as e:
             errors.append({"line": i, "error": str(e), "row": row})
 
-    inserted = updated = new_students_created = 0
+    if not valid_rows:
+        return jsonify({
+            "inserted": 0, "updated": 0, "new_students_created": 0,
+            "parse_errors": errors,
+        })
+
+    # De-duplicate student rows by roll_number (last one wins for name/batch/semester)
+    students_by_roll = {}
+    for roll, name, batch_name, semester, *_ in valid_rows:
+        students_by_roll[roll] = (name, roll, batch_name, semester)
 
     with get_conn() as conn, conn.cursor() as cur:
-        for roll, name, batch_name, semester, month, year, amount, payment_date in valid_rows:
-            cur.execute("SELECT student_id FROM students WHERE roll_number = %s", (roll,))
-            s = cur.fetchone()
-            if s:
-                student_id = s["student_id"]
-            else:
-                cur.execute(
-                    """
-                    INSERT INTO students (name, roll_number, batch_name, semester)
-                    VALUES (%s, %s, %s, %s)
-                    RETURNING student_id;
-                    """,
-                    (name, roll, batch_name, semester),
-                )
-                student_id = cur.fetchone()["student_id"]
-                new_students_created += 1
+        # Bulk upsert students; RETURNING tells us which rolls were newly created.
+        cur.executemany(
+            """
+            INSERT INTO students (name, roll_number, batch_name, semester)
+            VALUES (%s, %s, %s, %s)
+            ON CONFLICT (roll_number) DO NOTHING
+            RETURNING roll_number;
+            """,
+            list(students_by_roll.values()),
+            returning=True,
+        )
+        new_rolls = set()
+        while True:
+            row = cur.fetchone()
+            if row is not None:
+                new_rolls.add(row["roll_number"])
+            if not cur.nextset():
+                break
+        new_students_created = len(new_rolls)
 
-            cur.execute(
-                """
-                INSERT INTO fees (student_id, month, year, amount_paid, payment_date)
-                VALUES (%s, %s, %s, %s, %s)
-                ON CONFLICT (student_id, month, year)
-                DO UPDATE SET amount_paid = EXCLUDED.amount_paid,
-                              payment_date = EXCLUDED.payment_date
-                RETURNING (xmax = 0) AS inserted;
-                """,
-                (student_id, month, year, amount, payment_date),
-            )
-            was_insert = cur.fetchone()["inserted"]
-            if was_insert:
-                inserted += 1
-            else:
-                updated += 1
+        # Load roll_number → student_id map for all rolls in this batch.
+        rolls = list(students_by_roll.keys())
+        cur.execute(
+            "SELECT student_id, roll_number FROM students WHERE roll_number = ANY(%s);",
+            (rolls,),
+        )
+        id_by_roll = {r["roll_number"]: r["student_id"] for r in cur.fetchall()}
+
+        # Bulk upsert fees.
+        fee_rows = [
+            (id_by_roll[roll], month, year, amount, payment_date)
+            for roll, _name, _batch, _sem, month, year, amount, payment_date in valid_rows
+            if roll in id_by_roll
+        ]
+        cur.executemany(
+            """
+            INSERT INTO fees (student_id, month, year, amount_paid, payment_date)
+            VALUES (%s, %s, %s, %s, %s)
+            ON CONFLICT (student_id, month, year)
+            DO UPDATE SET amount_paid = EXCLUDED.amount_paid,
+                          payment_date = EXCLUDED.payment_date
+            RETURNING (xmax = 0) AS inserted;
+            """,
+            fee_rows,
+            returning=True,
+        )
+        inserted = updated = 0
+        while True:
+            row = cur.fetchone()
+            if row is not None:
+                if row["inserted"]:
+                    inserted += 1
+                else:
+                    updated += 1
+            if not cur.nextset():
+                break
 
     return jsonify({
         "inserted": inserted,

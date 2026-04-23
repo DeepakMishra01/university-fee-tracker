@@ -137,20 +137,66 @@ function csvEscape(v) {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-async function uploadFile(file) {
+function uploadFile(file) {
   const fd = new FormData();
   fd.append("file", file);
-  uploadStatus.textContent = "Uploading…";
-  const res = await fetch("/api/upload-fees", { method: "POST", body: fd });
-  const data = await res.json();
-  if (!res.ok) {
-    uploadStatus.textContent = `Upload failed: ${data.error || "unknown error"}`;
-    return;
-  }
-  uploadStatus.textContent =
-    `Upload done. Inserted: ${data.inserted}, Updated: ${data.updated}, New students created: ${data.new_students_created ?? 0}` +
-    (data.parse_errors?.length ? ` — ${data.parse_errors.length} parse error(s)` : "");
-  await loadStudents();
+
+  const bar = document.getElementById("progressBar");
+  const fill = document.getElementById("progressFill");
+  bar.hidden = false;
+  fill.style.width = "0%";
+  fill.textContent = "0%";
+  fill.classList.remove("processing");
+  uploadStatus.textContent = `Uploading ${(file.size / 1024).toFixed(1)} KB…`;
+
+  const xhr = new XMLHttpRequest();
+  xhr.open("POST", "/api/upload-fees");
+
+  xhr.upload.addEventListener("progress", e => {
+    if (e.lengthComputable) {
+      const pct = Math.round((e.loaded / e.total) * 100);
+      fill.style.width = pct + "%";
+      fill.textContent = pct + "%";
+    }
+  });
+
+  let processingStartedAt = null;
+  let processingTimer = null;
+  xhr.upload.addEventListener("load", () => {
+    fill.style.width = "100%";
+    fill.textContent = "Processing…";
+    fill.classList.add("processing");
+    processingStartedAt = Date.now();
+    processingTimer = setInterval(() => {
+      const secs = Math.floor((Date.now() - processingStartedAt) / 1000);
+      uploadStatus.textContent = `Server processing rows… (${secs}s)`;
+    }, 500);
+  });
+
+  xhr.addEventListener("loadend", async () => {
+    if (processingTimer) clearInterval(processingTimer);
+    bar.hidden = true;
+    fill.classList.remove("processing");
+
+    let data = {};
+    try { data = JSON.parse(xhr.responseText); } catch {}
+    if (xhr.status < 200 || xhr.status >= 300) {
+      uploadStatus.textContent = `Upload failed (HTTP ${xhr.status}): ${data.error || xhr.statusText}`;
+      return;
+    }
+    uploadStatus.textContent =
+      `Upload done. Inserted: ${data.inserted}, Updated: ${data.updated}, New students created: ${data.new_students_created ?? 0}` +
+      (data.parse_errors?.length ? ` — ${data.parse_errors.length} parse error(s)` : "");
+    await loadStudents();
+  });
+
+  xhr.addEventListener("error", () => {
+    if (processingTimer) clearInterval(processingTimer);
+    bar.hidden = true;
+    uploadStatus.textContent = "Upload failed — network error.";
+  });
+
+  xhr.send(fd);
 }
 
 // Wire events
