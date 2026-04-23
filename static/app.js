@@ -8,6 +8,7 @@ const yearSelect = document.getElementById("yearSelect");
 const uploadBtn = document.getElementById("uploadBtn");
 const fileInput = document.getElementById("fileInput");
 const downloadBtn = document.getElementById("downloadBtn");
+const sampleBtn = document.getElementById("sampleBtn");
 const uploadStatus = document.getElementById("uploadStatus");
 const rowCount = document.getElementById("rowCount");
 const tbody = document.querySelector("#studentsTable tbody");
@@ -163,6 +164,23 @@ fileInput.addEventListener("change", e => {
   e.target.value = "";
 });
 downloadBtn.addEventListener("click", downloadCsv);
+sampleBtn.addEventListener("click", downloadSampleCsv);
+
+function downloadSampleCsv() {
+  const headers = ["roll_number", "name", "batch_name", "semester", "month", "year", "amount_paid", "payment_date"];
+  const examples = [
+    ["CSE24001", "Aarav Sharma", "2025 - Aug - B.Tech CSE", "B.Tech CSE - Sem 1", "5", "2026", "15000", "2026-05-01"],
+    ["NEW001",   "New Student",  "2025 - Aug - B.Tech ME",  "B.Tech ME - Sem 1",  "5", "2026", "14000", "2026-05-02"],
+  ];
+  const lines = [headers.join(","), ...examples.map(r => r.map(csvEscape).join(","))];
+  const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "fees_sample.csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
 
 // Boot
 initDateSelects();
