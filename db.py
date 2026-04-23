@@ -11,6 +11,9 @@ DATABASE_URL = os.environ.get(
     "DATABASE_URL",
     "postgresql://postgres:postgres@localhost:5432/university_fees",
 )
+# Render (and some hosts) hand out URLs with "postgres://"; psycopg needs "postgresql://"
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
 
 
 @contextmanager
