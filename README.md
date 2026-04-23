@@ -26,12 +26,13 @@ Open http://localhost:5000
 
 ## CSV Format for Upload
 ```
-roll_number,month,year,amount_paid,payment_date
-CSE24001,4,2026,15000,2026-04-02
+roll_number,name,batch_name,semester,month,year,amount_paid,payment_date
+CSE24001,Aarav Sharma,2025 - Aug - B.Tech CSE,B.Tech CSE - Sem 1,4,2026,15000,2026-04-02
+NEW001,New Student,2025 - Aug - B.Tech ME,B.Tech ME - Sem 1,4,2026,14000,2026-04-03
 ```
 - `payment_date` must be `YYYY-MM-DD`
-- Re-uploading the same row updates (idempotent via `ON CONFLICT`)
-- Unknown roll numbers are reported back, not inserted
+- Re-uploading the same row updates the fee (idempotent via `ON CONFLICT`)
+- Roll numbers not already in `students` are automatically created — one CSV handles both new and existing students
 
 ## API
 - `GET  /api/students?month=<1-12>&year=<YYYY>` — all students + Paid/Unpaid for that month

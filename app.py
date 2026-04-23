@@ -68,7 +68,10 @@ def api_upload_fees():
         return jsonify({"error": "file must be UTF-8 encoded"}), 400
 
     reader = csv.DictReader(io.StringIO(text))
-    required = {"roll_number", "month", "year", "amount_paid", "payment_date"}
+    required = {
+        "roll_number", "name", "batch_name", "semester",
+        "month", "year", "amount_paid", "payment_date",
+    }
     if reader.fieldnames is None or not required.issubset({c.strip() for c in reader.fieldnames}):
         return jsonify({
             "error": f"CSV must have columns: {sorted(required)}",
@@ -80,27 +83,41 @@ def api_upload_fees():
     for i, row in enumerate(reader, start=2):  # start=2 accounts for header
         try:
             roll = row["roll_number"].strip()
+            name = row["name"].strip()
+            batch_name = row["batch_name"].strip()
+            semester = row["semester"].strip()
             month = int(row["month"])
             year = int(row["year"])
             amount = float(row["amount_paid"])
             payment_date = datetime.strptime(row["payment_date"].strip(), "%Y-%m-%d").date()
             if not (1 <= month <= 12):
                 raise ValueError("month must be 1-12")
-            valid_rows.append((roll, month, year, amount, payment_date))
+            if not roll or not name or not batch_name or not semester:
+                raise ValueError("roll_number, name, batch_name, and semester must not be empty")
+            valid_rows.append((roll, name, batch_name, semester, month, year, amount, payment_date))
         except (ValueError, KeyError, AttributeError) as e:
             errors.append({"line": i, "error": str(e), "row": row})
 
-    inserted = updated = skipped = 0
-    unknown_rolls = []
+    inserted = updated = new_students_created = 0
 
     with get_conn() as conn, conn.cursor() as cur:
-        for roll, month, year, amount, payment_date in valid_rows:
+        for roll, name, batch_name, semester, month, year, amount, payment_date in valid_rows:
             cur.execute("SELECT student_id FROM students WHERE roll_number = %s", (roll,))
             s = cur.fetchone()
-            if not s:
-                skipped += 1
-                unknown_rolls.append(roll)
-                continue
+            if s:
+                student_id = s["student_id"]
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO students (name, roll_number, batch_name, semester)
+                    VALUES (%s, %s, %s, %s)
+                    RETURNING student_id;
+                    """,
+                    (name, roll, batch_name, semester),
+                )
+                student_id = cur.fetchone()["student_id"]
+                new_students_created += 1
+
             cur.execute(
                 """
                 INSERT INTO fees (student_id, month, year, amount_paid, payment_date)
@@ -110,7 +127,7 @@ def api_upload_fees():
                               payment_date = EXCLUDED.payment_date
                 RETURNING (xmax = 0) AS inserted;
                 """,
-                (s["student_id"], month, year, amount, payment_date),
+                (student_id, month, year, amount, payment_date),
             )
             was_insert = cur.fetchone()["inserted"]
             if was_insert:
@@ -121,8 +138,7 @@ def api_upload_fees():
     return jsonify({
         "inserted": inserted,
         "updated": updated,
-        "skipped": skipped,
-        "unknown_roll_numbers": unknown_rolls,
+        "new_students_created": new_students_created,
         "parse_errors": errors,
     })
 

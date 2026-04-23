@@ -147,8 +147,7 @@ async function uploadFile(file) {
     return;
   }
   uploadStatus.textContent =
-    `Upload done. Inserted: ${data.inserted}, Updated: ${data.updated}, Skipped: ${data.skipped}` +
-    (data.unknown_roll_numbers?.length ? ` (unknown rolls: ${data.unknown_roll_numbers.join(", ")})` : "") +
+    `Upload done. Inserted: ${data.inserted}, Updated: ${data.updated}, New students created: ${data.new_students_created ?? 0}` +
     (data.parse_errors?.length ? ` — ${data.parse_errors.length} parse error(s)` : "");
   await loadStudents();
 }
